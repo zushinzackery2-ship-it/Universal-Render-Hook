@@ -1,4 +1,3 @@
-# Visual Studio
 .vs/
 .vscode/
 .idea/
@@ -7,7 +6,6 @@
 *.userosscache
 *.sln.docstates
 
-# Build outputs
 bin/
 obj/
 Debug/
@@ -15,7 +13,6 @@ Release/
 x64/
 x86/
 
-# C/C++
 *.obj
 *.ilk
 *.pdb
@@ -29,7 +26,6 @@ x86/
 *.exp
 *.lib
 
-# Logs / temp
 *.log
 *.tmp
 *.bak

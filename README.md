@@ -1,13 +1,24 @@
+<div align="center">
+
 # Universal-Render-Hook
 
-统一 `DX11 / DX12 / Vulkan` 的图形 Hook 抽象层。
+**统一 DX11 / DX12 / Vulkan 的图形 Hook 抽象层**
 
-## 定位
+*Headless Hook Core | Backend-Neutral Runtime | Diagnostics*
 
-- 对外提供统一 `AutoHook` 接口
-- 统一 runtime 和 diagnostics
-- 当前是 headless hook core
-- 不负责 GUI、视频编码、IPC、控制器
+![C++](https://img.shields.io/badge/C%2B%2B-17-blue?style=flat-square)
+![Platform](https://img.shields.io/badge/Platform-Windows%20x64-lightgrey?style=flat-square)
+![Backends](https://img.shields.io/badge/Backends-DX11%20%7C%20DX12%20%7C%20Vulkan-green?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
+
+</div>
+
+---
+
+> [!NOTE]
+> **仓库定位**  
+> 本仓库是 headless hook core，不负责 GUI、录屏、IPC、控制器。  
+> 上层业务只应通过公开头 `urh/*` 使用它。
 
 ## 目录
 
@@ -26,7 +37,7 @@ Universal-Render-Hook/
 #include <urh/urh.h>
 ```
 
-主要接口：
+主要能力：
 
 - `URH::FillDefaultDesc`
 - `URH::Init`
@@ -36,7 +47,7 @@ Universal-Render-Hook/
 - `URH::GetRuntime`
 - `URH::GetDiagnostics`
 
-原生公开类型现在以 `Urh*` 为规范名，例如：
+原生公开类型统一使用 `Urh*` 前缀：
 
 - `UrhAutoHookDesc`
 - `UrhAutoHookRuntime`
@@ -51,14 +62,8 @@ VulkanHook
 Universal-Render-Hook
 ```
 
-- `URH` 依赖 `VulkanHook`
-- 当前不再直接依赖上层 GUI 封装
-
-## 适用场景
-
-- 多后端统一探测
-- 统一 render 回调调度
-- 给上层录屏或诊断工具提供 backend-neutral runtime
+- `URH` 只向下依赖 `VulkanHook`
+- 不反向依赖 `RainGui` 或 `InterRec`
 
 ## 许可
 
