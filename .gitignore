@@ -1,0 +1,36 @@
+# Visual Studio
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+
+# C/C++
+*.obj
+*.ilk
+*.pdb
+*.idb
+*.ipch
+*.iobj
+*.ipdb
+*.pch
+*.tlog
+*.lastbuildstate
+*.exp
+*.lib
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+*.dmp
