@@ -2,7 +2,7 @@
 
 # Universal-Render-Hook
 
-**统一 DX11 / DX12 / Vulkan 的图形 Hook 抽象层**
+**统一 DX11 / DX12 / Vulkan 候选的图形 Hook 抽象层**
 
 *VTable Patch | Present 拦截 | 后端自动探测与竞争仲裁*
 
@@ -17,31 +17,106 @@
 
 > [!NOTE]
 > **仓库定位**  
-> 本仓库是 headless hook core，不负责 GUI、录屏、IPC、控制器。  
-> 上层业务只应通过公开头 `urh/*` 使用它。
+> 本仓库是无 UI 的 Hook 核心层。  
+> 它负责 DX11 / DX12 Hook、运行时快照和后端仲裁，不负责 GUI、录屏、控制器或业务状态机。
 
 > [!IMPORTANT]
-> **Hook 原理说明**  
-> DX11 / DX12 通过创建临时 SwapChain 探测 VTable 地址，然后 Patch `Present` / `Present1` / `ExecuteCommandLists` 等函数指针。  
-> Vulkan 路径委托给 `VulkanHook` 库，通过 Implicit Layer 机制注入。
-
----
+> **Vulkan 边界**  
+> 本仓库不会自己实现 Vulkan 的底层 Layer。  
+> 当 `AutoHook` 启用 Vulkan 候选时，实际 Vulkan runtime 跟踪与回调接入仍由 `VulkanHook` 提供，本仓库只负责把它纳入统一仲裁面。
 
 ## 特性
 
 | 功能 | 说明 |
 |:-----|:-----|
-| **DX11 VTable Hook** | 创建临时 `D3D11CreateDeviceAndSwapChain` + `IDXGISwapChain`，读取 VTable 中 `Present` 函数指针（索引 8），修改页面保护后原子替换为 Hook 函数 |
-| **DX12 VTable Hook** | 创建临时 `D3D12CreateDevice` + `IDXGISwapChain3`，Hook `Present` / `Present1`（索引 8 / 22）以及 `ID3D12CommandQueue::ExecuteCommandLists`（索引 10）|
-| **Vulkan 路径** | 委托 `VulkanHook` 库，通过 Layer 拦截 `vkQueuePresentKHR`，本库只做回调适配 |
-| **后端自动探测** | `AutoHook` 模式同时安装 DX11 / DX12 / Vulkan 三个后端，监听首个稳定渲染的后端并锁定 |
-| **竞争仲裁** | 部分引擎同时初始化多个后端，`AutoHook` 通过 `stableFrames` 计数 + 分辨率比较选择主后端，避免在错误后端上渲染 |
-| **Warmup 帧** | 跳过前 N 帧（默认 3），等待后端资源稳定后再调用 `onSetup` / `onRender` |
-| **RenderTargetView 管理** | DX11 每帧自动获取 BackBuffer 并创建 `ID3D11RenderTargetView`，支持 Resize 自动重建 |
-| **CommandAllocator / Fence** | DX12 为每个 BackBuffer 创建独立 `ID3D12CommandAllocator`，使用 `ID3D12Fence` 同步 GPU 完成状态 |
-| **Multithread 保护** | DX11 自动获取 `ID3D11Multithread` 接口并在渲染期间加锁，避免与游戏线程冲突 |
-| **WndProc Hook** | 可选拦截窗口消息，支持 `blockInputWhenVisible` 阻止鼠标键盘传递给游戏 |
-| **诊断信息** | `GetDiagnostics()` 返回各后端的探测状态、稳定帧数、分辨率，便于调试 |
+| **DX11 VTable Hook** | 创建临时 `IDXGISwapChain` 探测 `Present` 地址，再 patch 到 Hook 函数 |
+| **DX12 VTable Hook** | 创建临时 DX12 device / swapchain，hook `Present` / `Present1` / `ExecuteCommandLists` |
+| **Vulkan 候选接入** | 通过 `VulkanHook` 暴露的 runtime 和回调，把 Vulkan 纳入 `AutoHook` 候选 |
+| **AutoHook 仲裁** | 根据 `backendMask` 安装启用后端，统计稳定帧后锁定最佳后端 |
+| **运行时快照** | 对外暴露 `UrhAutoHookRuntime`、`UrhDx11HookRuntime`、`UrhDx12HookRuntime` |
+| **WndProc Hook** | 可选阻断输入、可选默认 debug window |
+| **诊断信息** | 输出 `seen / stableFrames / size / lockedBackend` 供调试与日志使用 |
+
+---
+
+## 架构
+
+```text
+应用程序
+  IDXGISwapChain::Present / Present1 / ExecuteCommandLists / vkQueuePresentKHR
+    |
+    +----------+-----------+-----------+
+    |          |           |           |
+    v          v           v           v
+DX11 Hook   DX12 Hook   VulkanHook   Diagnostics
+VTable Patch VTable Patch 运行时转接   候选统计
+    |          |           |
+    +----------+-----------+
+               |
+               v
+           UrhAutoHook
+             ├─ 候选更新
+             ├─ 稳定帧判断
+             ├─ 后端锁定 / 升级
+             └─ onSetup / onRender 分发
+```
+
+---
+
+## AutoHook 仲裁流程
+
+```text
+URH::Init()
+    │
+    ├─ 根据 backendMask 安装启用的候选
+    │   ├─ DX11: Init(Dx11Hook)
+    │   ├─ DX12: Init(Dx12Hook)
+    │   └─ Vulkan: VkhHook::Init()
+    │
+    └─ 等待候选帧回调
+
+OnDx11Frame / OnDx12Frame / OnVulkanFrame
+    │
+    ├─ 更新 candidate.seen / candidate.width / candidate.height
+    ├─ 累加 stableFrames
+    └─ TryLockBackend()
+        │
+        ├─ 按 stableFrames 比较
+        ├─ 同稳定度时按分辨率面积比较
+        ├─ 再按优先级 Vulkan > DX12 > DX11 比较
+        └─ 更新 lockedBackend
+```
+
+当前锁定规则允许：
+
+- `DX11 -> DX12`
+- `DX11 -> Vulkan`
+- `DX12 -> Vulkan`
+
+不会反向降级。
+
+---
+
+## DX11 Hook 原理
+
+```text
+1. 创建临时 DX11 device + swapchain
+2. 读取 swapchain VTable
+3. 取出 Present 槽位地址
+4. 调整页保护
+5. 原子替换为 HookPresent
+6. 在 HookPresent 中组装运行时并触发回调
+```
+
+## DX12 Hook 原理
+
+```text
+1. 创建临时 DX12 device / command queue / swapchain
+2. 读取 swapchain 与 command queue 的 VTable
+3. patch Present / Present1 / ExecuteCommandLists
+4. 在 Hook 回调里更新当前 command queue、buffer index、format、size
+5. 通过统一 runtime 对外暴露给上层
+```
 
 ---
 
@@ -50,209 +125,62 @@
 | 分类 | API | 说明 |
 |:-----|:----|:-----|
 | **初始化** | `URH::FillDefaultDesc(desc)` | 填充默认配置 |
-|  | `URH::Init(desc)` | 安装 Hook 并开始监听 |
-|  | `URH::Shutdown()` | 卸载 Hook，清理资源 |
-| **状态查询** | `URH::IsInstalled()` | 是否已调用 Init |
+|  | `URH::Init(desc)` | 安装启用的候选后端 |
+|  | `URH::Shutdown()` | 卸载 Hook 并清理状态 |
+| **状态查询** | `URH::IsInstalled()` | 是否已安装 |
 |  | `URH::IsReady()` | 是否已锁定有效后端 |
-| **运行时** | `URH::GetRuntime()` | 获取当前 `UrhAutoHookRuntime` |
-|  | `URH::GetDiagnostics(diag)` | 获取后端诊断信息 |
+| **运行时** | `URH::GetRuntime()` | 获取当前锁定后的运行时 |
+|  | `URH::GetDiagnostics(diag)` | 获取各候选的诊断信息 |
 
----
+DX11 / DX12 也分别暴露独立入口：
 
-## 回调类型
-
-```cpp
-using UrhAutoHookSetupCallback    = void (*)(const UrhAutoHookRuntime* runtime, void* userData);
-using UrhAutoHookRenderCallback   = void (*)(const UrhAutoHookRuntime* runtime, void* userData);
-using UrhAutoHookVisibleCallback  = bool (*)(void* userData);
-using UrhAutoHookShutdownCallback = void (*)(void* userData);
-```
-
-**UrhAutoHookRuntime 结构**：
-
-| 字段 | 类型 | 说明 |
-|:-----|:-----|:-----|
-| `backend` | `UrhAutoHookBackend` | 当前后端类型（DX11 / DX12 / Vulkan） |
-| `hwnd` | `void*` | 渲染窗口句柄 |
-| `nativeRuntime` | `void*` | 底层 Runtime 指针（`UrhDx11HookRuntime*` / `UrhDx12HookRuntime*` / `VkhHookRuntime*`） |
-| `bufferCount` | `UINT` | SwapChain BackBuffer 数量 |
-| `backBufferIndex` | `UINT` | 当前帧 BackBuffer 索引 |
-| `backBufferFormat` | `DXGI_FORMAT` | BackBuffer 格式 |
-| `width` / `height` | `float` | 渲染分辨率 |
-| `frameCount` | `UINT` | 累计帧数 |
-
----
-
-## 架构
-
-```
-应用程序
-  IDXGISwapChain::Present / vkQueuePresentKHR / ...
-    |
-    +----------+-----------+
-    |          |           |
-    v          v           v
-DX11 Hook   DX12 Hook   Vulkan Hook
-VTable Patch VTable Patch (VulkanHook)
-Present(8)  Present(8/22) Layer 拦截
-    |          |           |
-    +----------+-----------+
-               |
-               v
-AutoHook
-  后端仲裁: 监听 dx11/dx12/vulkan 帧回调，选择稳定后端锁定
-    |
-    v
-  用户回调 onSetup / onRender
-```
-
----
-
-## 后端探测与仲裁流程
-
-```
-URH::Init()
-    │
-    ├─ 根据 backendMask 安装启用的后端
-    │   ├─ DX11: 创建临时 SwapChain → 探测 VTable → Patch Present
-    │   ├─ DX12: 创建临时 Device/SwapChain → 探测 VTable → Patch Present/ExecuteCommandLists
-    │   └─ Vulkan: 调用 VHK::Init()，注册 Layer 回调
-    │
-    └─ 等待帧回调
-
-OnDx11Frame / OnDx12Frame / OnVulkanFrame
-    │
-    ├─ 更新对应 Candidate 的 stableFrames / width / height
-    │
-    └─ TryLockBackend()
-        │
-        ├─ 若 lockedBackend == Unknown:
-        │   ├─ 选择 stableFrames 最高且分辨率最大的后端
-        │   └─ 锁定后端，后续忽略其他后端的帧回调
-        │
-        └─ 若已锁定:
-            └─ 只处理锁定后端的帧，调用 onSetup (首次) / onRender (每帧)
-```
-
----
-
-## VTable Hook 原理 (DX11)
-
-```cpp
-// 1. 创建临时 SwapChain 获取 VTable
-D3D11CreateDeviceAndSwapChain(..., &device, &swapChain);
-void** vtable = *reinterpret_cast<void***>(swapChain);
-
-// 2. 保存原始函数指针
-originalPresent = reinterpret_cast<PresentFn>(vtable[8]);
-
-// 3. 修改页面保护
-VirtualProtect(vtable + 8, sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect);
-
-// 4. 原子替换
-InterlockedExchangePointer(&vtable[8], HookPresent);
-
-// 5. Hook 函数
-HRESULT HookPresent(IDXGISwapChain* swapChain, UINT syncInterval, UINT flags)
-{
-    // 渲染 Overlay
-    RenderFrame(swapChain);
-    // 调用原始函数
-    return originalPresent(swapChain, syncInterval, flags);
-}
-```
+- `urh/dx11_hook.h`
+- `urh/dx12_hook.h`
 
 ---
 
 ## 目录结构
 
-```
+```text
 Universal-Render-Hook/
 └── URH/
     ├── include/urh/
-    │   ├── urh.h                    # 主入口，URH 命名空间封装
-    │   ├── autohook.h               # UrhAutoHook 静态类声明
-    │   ├── types.h                  # UrhAutoHookDesc / UrhAutoHookRuntime 定义
-    │   ├── dx11_hook.h              # UrhDx11Hook 静态类声明
-    │   ├── dx11_types.h             # UrhDx11HookDesc / UrhDx11HookRuntime 定义
-    │   ├── dx12_hook.h              # UrhDx12Hook 静态类声明
-    │   └── dx12_types.h             # UrhDx12HookDesc / UrhDx12HookRuntime 定义
+    │   ├── urh.h
+    │   ├── autohook.h
+    │   ├── types.h
+    │   ├── dx11_hook.h
+    │   ├── dx11_types.h
+    │   ├── dx12_hook.h
+    │   └── dx12_types.h
     └── src/
-        ├── urh_autohook.cpp         # AutoHook 主逻辑
-        ├── urh_autohook_dispatch.cpp # 后端回调分发
-        ├── urh_autohook_helpers.cpp # 后端仲裁 / Desc 转换
-        ├── urh_autohook_internal.h  # AutoHookState / Candidate 定义
-        ├── urh_dx11_bootstrap.cpp   # DX11 临时 SwapChain 创建
-        ├── urh_dx11_probe.cpp       # DX11 VTable 探测
-        ├── urh_dx11_hooks_present.cpp # DX11 Present Hook 实现
-        ├── urh_dx11_hooks_common.cpp  # DX11 Hook 安装 / 卸载
-        ├── urh_dx11_resources.cpp   # DX11 RenderTargetView 管理
-        ├── urh_dx11_context.cpp     # DX11 DeviceContext 封装
-        ├── urh_dx11_internal.h      # DX11 ModuleState 定义
-        ├── urh_dx12_bootstrap.cpp   # DX12 临时 Device/SwapChain 创建
-        ├── urh_dx12_probe.cpp       # DX12 VTable 探测
-        ├── urh_dx12_hooks_present.cpp # DX12 Present Hook 实现
-        ├── urh_dx12_hooks_aux.cpp   # DX12 ExecuteCommandLists Hook
-        ├── urh_dx12_hooks_common.cpp  # DX12 Hook 安装 / 卸载
-        ├── urh_dx12_resources.cpp   # DX12 CommandAllocator / Fence 管理
-        ├── urh_dx12_context.cpp     # DX12 CommandList 封装
-        └── urh_dx12_internal.h      # DX12 ModuleState 定义
+        ├── urh_autohook.cpp
+        ├── urh_autohook_dispatch.cpp
+        ├── urh_autohook_helpers.cpp
+        ├── urh_dx11_*.cpp
+        ├── urh_dx12_*.cpp
+        └── urh_*internal*.h
 ```
 
 ---
 
-## 快速开始
+## 集成
 
-```cpp
-#include <urh/urh.h>
+这是源码仓库，不跟踪仓库内 GUI 层、录屏器、controller 或测试载荷。
 
-void OnSetup(const UrhAutoHookRuntime* runtime, void* userData)
-{
-    // 后端锁定后首次调用
-    // runtime->backend 指示当前后端类型
-}
-
-void OnRender(const UrhAutoHookRuntime* runtime, void* userData)
-{
-    // 每帧 Present 前调用
-    // 可通过 runtime->nativeRuntime 获取底层资源
-}
-
-int main()
-{
-    UrhAutoHookDesc desc;
-    URH::FillDefaultDesc(&desc);
-    desc.onSetup = OnSetup;
-    desc.onRender = OnRender;
-    desc.backendMask = UrhAutoHookBackendMask_All; // DX11 | DX12 | Vulkan
-    desc.warmupFrames = 3;
-
-    if (!URH::Init(&desc))
-    {
-        return 1;
-    }
-
-    // ... 等待游戏渲染 ...
-
-    URH::Shutdown();
-    return 0;
-}
-```
+- 只使用 DX11 / DX12 时，你的工程只需要接入 `URH`
+- 需要把 Vulkan 也纳入 `AutoHook` 时，再把 `VulkanHook` 一并接入
 
 ---
 
 ## 依赖方向
 
-```
+```text
 VulkanHook
     ↑
-Universal-Render-Hook (本仓库)
-    ↑
-RainGui / InterRec (可选上层)
+Universal-Render-Hook
 ```
 
-- `URH` 只向下依赖 `VulkanHook`
-- 不反向依赖 `RainGui` 或 `InterRec`
+`Universal-Render-Hook` 不反向依赖 `RainGui` 或 `InterRec`。
 
 ---
 
