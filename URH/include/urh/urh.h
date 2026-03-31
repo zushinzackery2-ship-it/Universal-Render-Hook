@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "autohook.h"
+#include "vulkan.h"
 
 namespace URH
 {
@@ -14,10 +15,16 @@ namespace URH
     using Runtime = UrhAutoHookRuntime;
     using Diagnostics = UrhAutoHookDiagnostics;
     using Desc = UrhAutoHookDesc;
+    using VulkanRuntime = UrhVulkanHookRuntime;
+    using VulkanDesc = UrhVulkanHookDesc;
     using SetupCallback = UrhAutoHookSetupCallback;
     using RenderCallback = UrhAutoHookRenderCallback;
     using VisibleCallback = UrhAutoHookVisibleCallback;
     using ShutdownCallback = UrhAutoHookShutdownCallback;
+    using VulkanSetupCallback = UrhVulkanHookSetupCallback;
+    using VulkanRenderCallback = UrhVulkanHookRenderCallback;
+    using VulkanVisibleCallback = UrhVulkanHookVisibleCallback;
+    using VulkanShutdownCallback = UrhVulkanHookShutdownCallback;
 
     inline void FillDefaultDesc(Desc* desc)
     {
@@ -52,5 +59,50 @@ namespace URH
     inline void GetDiagnostics(Diagnostics* diagnostics)
     {
         UrhAutoHook::GetDiagnostics(diagnostics);
+    }
+
+    inline void FillVulkanDefaultDesc(VulkanDesc* desc)
+    {
+        UrhVulkanHook::FillDefaultDesc(desc);
+    }
+
+    inline bool InitVulkan(const VulkanDesc* desc)
+    {
+        return UrhVulkanHook::Init(desc);
+    }
+
+    inline void ShutdownVulkan()
+    {
+        UrhVulkanHook::Shutdown();
+    }
+
+    inline bool IsVulkanInstalled()
+    {
+        return UrhVulkanHook::IsInstalled();
+    }
+
+    inline bool IsVulkanLayerModeEnabled()
+    {
+        return UrhVulkanHook::IsLayerModeEnabled();
+    }
+
+    inline bool HasVulkanTrackedActivity()
+    {
+        return UrhVulkanHook::HasTrackedActivity();
+    }
+
+    inline bool HasVulkanRecognizedBackend()
+    {
+        return UrhVulkanHook::HasRecognizedBackend();
+    }
+
+    inline bool IsVulkanReady()
+    {
+        return UrhVulkanHook::IsReady();
+    }
+
+    inline const VulkanRuntime* GetVulkanRuntime()
+    {
+        return UrhVulkanHook::GetRuntime();
     }
 }

@@ -34,6 +34,7 @@
 | **Vulkan 候选接入** | 通过 `VulkanHook` 暴露的 runtime 和回调，把 Vulkan 纳入 `AutoHook` 候选 |
 | **AutoHook 仲裁** | 根据 `backendMask` 安装启用后端，统计稳定帧后锁定最佳后端 |
 | **运行时快照** | 对外暴露 `UrhAutoHookRuntime`、`UrhDx11HookRuntime`、`UrhDx12HookRuntime` |
+| **Vulkan facade** | 对外暴露 `urh/vulkan.h`、`urh/vulkan_hook.h`、`urh/vulkan_types.h`，把 `VulkanHook` 的公开接口收口到 `URH` 入口下 |
 | **WndProc Hook** | 可选阻断输入、可选默认 debug window |
 | **诊断信息** | 输出 `seen / stableFrames / size / lockedBackend` 供调试与日志使用 |
 
@@ -136,6 +137,9 @@ DX11 / DX12 也分别暴露独立入口：
 
 - `urh/dx11_hook.h`
 - `urh/dx12_hook.h`
+- `urh/vulkan.h`
+- `urh/vulkan_hook.h`
+- `urh/vulkan_types.h`
 
 ---
 
@@ -151,7 +155,10 @@ Universal-Render-Hook/
     │   ├── dx11_hook.h
     │   ├── dx11_types.h
     │   ├── dx12_hook.h
-    │   └── dx12_types.h
+    │   ├── dx12_types.h
+    │   ├── vulkan.h
+    │   ├── vulkan_hook.h
+    │   └── vulkan_types.h
     └── src/
         ├── urh_autohook.cpp
         ├── urh_autohook_dispatch.cpp
