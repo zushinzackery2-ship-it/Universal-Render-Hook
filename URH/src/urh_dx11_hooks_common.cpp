@@ -66,18 +66,7 @@ namespace UrhDx11HookInternal
 
     PresentFn ResolvePresentFn(IDXGISwapChain* swapChain)
     {
-        if (swapChain)
-        {
-            auto** vtable = *reinterpret_cast<void***>(swapChain);
-            if (vtable)
-            {
-                auto fn = reinterpret_cast<PresentFn>(vtable[8]);
-                if (fn && fn != HookPresent)
-                {
-                    return fn;
-                }
-            }
-        }
+        UNREFERENCED_PARAMETER(swapChain);
 
         return g_state.originalPresent;
     }

@@ -113,9 +113,9 @@ namespace UrhAutoHook
             g_state.installed = false;
         }
 
-        if (dx11Installed)
+        if (vulkanInstalled)
         {
-            UrhDx11Hook::Shutdown();
+            VkhHook::Shutdown();
         }
 
         if (dx12Installed)
@@ -123,9 +123,9 @@ namespace UrhAutoHook
             UrhDx12Hook::Shutdown();
         }
 
-        if (vulkanInstalled)
+        if (dx11Installed)
         {
-            VkhHook::Shutdown();
+            UrhDx11Hook::Shutdown();
         }
 
         {

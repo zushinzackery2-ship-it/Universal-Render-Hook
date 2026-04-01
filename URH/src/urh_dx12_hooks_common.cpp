@@ -66,54 +66,21 @@ namespace UrhDx12HookInternal
 
     PresentFn ResolvePresentFn(IDXGISwapChain* swapChain)
     {
-        if (swapChain)
-        {
-            auto** vtable = *reinterpret_cast<void***>(swapChain);
-            if (vtable)
-            {
-                auto fn = reinterpret_cast<PresentFn>(vtable[8]);
-                if (fn && fn != HookPresent)
-                {
-                    return fn;
-                }
-            }
-        }
+        UNREFERENCED_PARAMETER(swapChain);
 
         return g_state.originalPresent;
     }
 
     Present1Fn ResolvePresent1Fn(IDXGISwapChain1* swapChain)
     {
-        if (swapChain)
-        {
-            auto** vtable = *reinterpret_cast<void***>(swapChain);
-            if (vtable)
-            {
-                auto fn = reinterpret_cast<Present1Fn>(vtable[22]);
-                if (fn && fn != HookPresent1)
-                {
-                    return fn;
-                }
-            }
-        }
+        UNREFERENCED_PARAMETER(swapChain);
 
         return g_state.originalPresent1;
     }
 
     ExecuteCommandListsFn ResolveExecuteFn(ID3D12CommandQueue* queue)
     {
-        if (queue)
-        {
-            auto** vtable = *reinterpret_cast<void***>(queue);
-            if (vtable)
-            {
-                auto fn = reinterpret_cast<ExecuteCommandListsFn>(vtable[10]);
-                if (fn && fn != HookExecuteCommandLists)
-                {
-                    return fn;
-                }
-            }
-        }
+        UNREFERENCED_PARAMETER(queue);
 
         return g_state.originalExecuteCommandLists;
     }
