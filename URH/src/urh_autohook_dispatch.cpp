@@ -96,7 +96,7 @@ namespace UrhAutoHookInternal
         DispatchRuntime(runtime, UrhAutoHookBackend_Dx12, FillRuntimeFromDx12);
     }
 
-    void DispatchVulkanRender(const VkhHookRuntime* runtime)
+    void DispatchVulkanRender(const UrhVulkanHookRuntime* runtime)
     {
         DispatchRuntime(runtime, UrhAutoHookBackend_Vulkan, FillRuntimeFromVulkan);
     }
@@ -144,10 +144,10 @@ namespace UrhAutoHookInternal
         targetDesc.startVisible = sourceDesc.startVisible;
     }
 
-    void FillVulkanDesc(const UrhAutoHookDesc& sourceDesc, VkhHookDesc& targetDesc)
+    void FillVulkanDesc(const UrhAutoHookDesc& sourceDesc, UrhVulkanHookDesc& targetDesc)
     {
-        VkhHook::FillDefaultDesc(&targetDesc);
-        targetDesc.onRender = [](const VkhHookRuntime* runtime, void*)
+        UrhVulkanHook::FillDefaultDesc(&targetDesc);
+        targetDesc.onRender = [](const UrhVulkanHookRuntime* runtime, void*)
         {
             DispatchVulkanRender(runtime);
         };

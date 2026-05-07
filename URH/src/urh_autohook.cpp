@@ -55,7 +55,7 @@ namespace UrhAutoHook
 
         UrhDx11HookDesc dx11Desc = {};
         UrhDx12HookDesc dx12Desc = {};
-        VkhHookDesc vulkanDesc = {};
+        UrhVulkanHookDesc vulkanDesc = {};
         FillDx11Desc(effectiveDesc, dx11Desc);
         FillDx12Desc(effectiveDesc, dx12Desc);
         FillVulkanDesc(effectiveDesc, vulkanDesc);
@@ -67,7 +67,7 @@ namespace UrhAutoHook
             ? UrhDx12Hook::Init(&dx12Desc)
             : false;
         const bool vulkanInstalled = (effectiveDesc.backendMask & UrhAutoHookBackendMask_Vulkan) != 0
-            ? VkhHook::Init(&vulkanDesc)
+            ? UrhVulkanHook::Init(&vulkanDesc)
             : false;
 
         {
@@ -115,7 +115,7 @@ namespace UrhAutoHook
 
         if (vulkanInstalled)
         {
-            VkhHook::Shutdown();
+            UrhVulkanHook::Shutdown();
         }
 
         if (dx12Installed)
@@ -161,7 +161,7 @@ namespace UrhAutoHook
             return g_state.dx12Installed && UrhDx12Hook::IsReady();
 
         case UrhAutoHookBackend_Vulkan:
-            return g_state.vulkanInstalled && VkhHook::IsReady();
+            return g_state.vulkanInstalled && UrhVulkanHook::IsReady();
 
         default:
             return false;

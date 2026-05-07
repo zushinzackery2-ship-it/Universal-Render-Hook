@@ -7,7 +7,7 @@
 #include "urh_autohook.h"
 #include "urh_dx11_hook.h"
 #include "urh_dx12_hook.h"
-#include "urh_vulkan_hook.h"
+#include "../include/urh/vulkan_hook.h"
 
 namespace UrhAutoHookInternal
 {
@@ -25,7 +25,7 @@ namespace UrhAutoHookInternal
         UrhAutoHookRuntime runtime;
         UrhDx11HookRuntime dx11Runtime;
         UrhDx12HookRuntime dx12Runtime;
-        VkhHookRuntime vulkanRuntime;
+        UrhVulkanHookRuntime vulkanRuntime;
         std::mutex mutex;
         bool installed;
         bool dx11Installed;
@@ -49,13 +49,13 @@ namespace UrhAutoHookInternal
     UrhAutoHookBackend SelectBestBackend();
     void FillRuntimeFromDx11(const UrhDx11HookRuntime* sourceRuntime, UrhAutoHookRuntime& targetRuntime);
     void FillRuntimeFromDx12(const UrhDx12HookRuntime* sourceRuntime, UrhAutoHookRuntime& targetRuntime);
-    void FillRuntimeFromVulkan(const VkhHookRuntime* sourceRuntime, UrhAutoHookRuntime& targetRuntime);
+    void FillRuntimeFromVulkan(const UrhVulkanHookRuntime* sourceRuntime, UrhAutoHookRuntime& targetRuntime);
     bool IsLockedBackend(UrhAutoHookBackend backend);
     void DispatchDx11Render(const UrhDx11HookRuntime* runtime);
     void DispatchDx12Render(const UrhDx12HookRuntime* runtime);
-    void DispatchVulkanRender(const VkhHookRuntime* runtime);
+    void DispatchVulkanRender(const UrhVulkanHookRuntime* runtime);
     bool QueryAutoVisible(UrhAutoHookBackend backend);
     void FillDx11Desc(const UrhAutoHookDesc& sourceDesc, UrhDx11HookDesc& targetDesc);
     void FillDx12Desc(const UrhAutoHookDesc& sourceDesc, UrhDx12HookDesc& targetDesc);
-    void FillVulkanDesc(const UrhAutoHookDesc& sourceDesc, VkhHookDesc& targetDesc);
+    void FillVulkanDesc(const UrhAutoHookDesc& sourceDesc, UrhVulkanHookDesc& targetDesc);
 }

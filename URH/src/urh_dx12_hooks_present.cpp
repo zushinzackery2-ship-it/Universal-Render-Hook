@@ -9,6 +9,8 @@ namespace UrhDx12HookInternal
 
     void RenderFrame(IDXGISwapChain* swapChain, ID3D12CommandQueue* renderQueue)
     {
+        UNREFERENCED_PARAMETER(swapChain);
+        UNREFERENCED_PARAMETER(renderQueue);
         if (!g_state.backendReady || g_state.deviceLost)
         {
             return;

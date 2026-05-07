@@ -52,6 +52,7 @@ namespace UrhDx11HookInternal
 {
     void RenderFrame(IDXGISwapChain* swapChain)
     {
+        UNREFERENCED_PARAMETER(swapChain);
         if (!g_state.backendReady || g_state.deviceLost || !g_state.deviceContext)
         {
             return;

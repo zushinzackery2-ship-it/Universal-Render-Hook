@@ -251,7 +251,7 @@ namespace UrhAutoHookInternal
     }
 
     void FillRuntimeFromVulkan(
-        const VkhHookRuntime* sourceRuntime,
+        const UrhVulkanHookRuntime* sourceRuntime,
         UrhAutoHookRuntime& targetRuntime)
     {
         ResetRuntime(targetRuntime);
