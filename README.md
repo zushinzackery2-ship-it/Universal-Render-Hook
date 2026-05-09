@@ -139,34 +139,26 @@ OnDx11Frame / OnDx12Frame / OnVulkanFrame
 
 ```
 Universal-Render-Hook/
-├── build.bat                  # 编译脚本 (MSVC x64 Release)
-└── URH/
-    ├── include/urh/
-    │   ├── urh.h              # 入口
-    │   ├── autohook.h         # AutoHook API
-    │   ├── types.h            # 公共类型
-    │   ├── dx11_*.h           # DX11 Hook
-    │   ├── dx12_*.h           # DX12 Hook
-    │   └── vulkan*.h          # Vulkan Hook API
-    └── src/
-        ├── urh_autohook*.cpp          # AutoHook 仲裁
-        ├── urh_dx_common.h/cpp        # DX11/DX12 公共层 (PatchVtable 等)
-        ├── urh_dx11_*.cpp             # DX11 Hook 实现
-        ├── urh_dx12_*.cpp             # DX12 Hook 实现
-        ├── urh_vulkan_bootstrap.cpp   # Vulkan 初始化 / 状态查询
-        ├── urh_vulkan_tracking.cpp    # Vulkan 运行时跟踪 (Swapchain 生命周期)
-        ├── urh_vulkan_tracking_helpers.cpp # Vulkan 跟踪辅助 (窗口探测等)
-        ├── urh_vulkan_dispatch.cpp    # Vulkan DispatchPresent
-        ├── urh_vulkan_probe_helpers.cpp # Vulkan 探测辅助函数
-        ├── urh_vulkan_probe_thread.cpp  # Vulkan 探测线程与控制
-        ├── urh_vulkan_common.h        # Vulkan 公共工具 (HandleKey)
-        ├── urh_vulkan_layer_*.cpp     # Vulkan Layer 导出与 Dispatch
-        ├── urh_vulkan_internal.h      # Vulkan 内部状态
-        ├── urh_vulkan_layer_internal.h # Vulkan Layer 内部类型
-        ├── urh_vulkan_types_minimal.h # 最小 Vulkan 类型定义
-        ├── urh_vulkan_pfns_minimal.h  # 最小 Vulkan 函数指针
-        ├── urh_vulkan_minimal.h       # 向后兼容 shim
-        └── urh_console_logger.h       # 日志
+├── build.bat                    # 编译脚本 (MSVC x64 Release)
+├── URH/
+│   ├── include/urh/             # 公共 API
+│   │   ├── urh.h                # 统一入口
+│   │   ├── autohook.h           # AutoHook API
+│   │   ├── types.h              # 公共类型
+│   │   ├── dx11_hook.h / dx11_types.h
+│   │   ├── dx12_hook.h / dx12_types.h
+│   │   └── vulkan.h / vulkan_hook.h / vulkan_types.h
+│   └── src/
+│       ├── autohook/            # AutoHook 仲裁模块
+│       ├── dx11/                # DX11 Hook 实现
+│       ├── dx12/                # DX12 Hook 实现
+│       ├── dx_common/           # DX11/DX12 公共层 (VTable patch 等)
+│       ├── vulkan/              # Vulkan Hook 实现
+│       │   └── (layer/ 逻辑内聚在 vulkan/ 内)
+│       ├── urh_*.{h}            # shim → include/urh/ 转发
+│       └── urh_console_logger.h # 日志工具
+└── bin/
+    └── URH.lib                  # 编译产物
 ```
 
 ---
