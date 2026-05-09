@@ -159,7 +159,7 @@ namespace UrhDx11HookInternal
                 g_state.deviceLost ? 1 : 0);
         }
 
-        if (g_state.unloading || g_state.suspendRendering)
+        if (g_state.unloading.load(std::memory_order_relaxed) || g_state.suspendRendering.load(std::memory_order_relaxed))
         {
             DWORD exceptionCode = 0;
             HRESULT hr = CallOriginalPresentSafe(swapChain, syncInterval, flags, &exceptionCode);
@@ -171,11 +171,11 @@ namespace UrhDx11HookInternal
             return hr;
         }
 
-        InterlockedIncrement(&g_state.presentInFlight);
+        g_state.presentInFlight.fetch_add(1);
 
-        if (g_state.suspendRendering)
+        if (g_state.suspendRendering.load(std::memory_order_relaxed))
         {
-            InterlockedDecrement(&g_state.presentInFlight);
+            g_state.presentInFlight.fetch_sub(1);
 
             DWORD exceptionCode = 0;
             HRESULT hr = CallOriginalPresentSafe(swapChain, syncInterval, flags, &exceptionCode);
@@ -189,7 +189,7 @@ namespace UrhDx11HookInternal
 
         if ((flags & DXGI_PRESENT_TEST) || (g_state.gameWindow && IsIconic(g_state.gameWindow)))
         {
-            InterlockedDecrement(&g_state.presentInFlight);
+            g_state.presentInFlight.fetch_sub(1);
 
             DWORD exceptionCode = 0;
             HRESULT hr = CallOriginalPresentSafe(swapChain, syncInterval, flags, &exceptionCode);
@@ -210,7 +210,7 @@ namespace UrhDx11HookInternal
             g_state.deviceLost = true;
         }
 
-        InterlockedDecrement(&g_state.presentInFlight);
+        g_state.presentInFlight.fetch_sub(1);
         return hr;
     }
 }

@@ -1,54 +1,5 @@
 #include "urh_dx11_internal.h"
-
-namespace
-{
-    static constexpr const wchar_t* ProbeWindowClassName = L"UrhDx11HookProbeWindow";
-
-    bool CreateProbeWindow(WNDCLASSEXW& windowClass, HWND& windowHandle)
-    {
-        ZeroMemory(&windowClass, sizeof(windowClass));
-        windowClass.cbSize = sizeof(windowClass);
-        windowClass.style = CS_HREDRAW | CS_VREDRAW;
-        windowClass.lpfnWndProc = DefWindowProcW;
-        windowClass.hInstance = GetModuleHandleW(nullptr);
-        windowClass.lpszClassName = ProbeWindowClassName;
-
-        ATOM atom = RegisterClassExW(&windowClass);
-        if (atom == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
-        {
-            return false;
-        }
-
-        windowHandle = CreateWindowExW(
-            0,
-            ProbeWindowClassName,
-            L"UrhDx11HookProbe",
-            WS_OVERLAPPEDWINDOW,
-            0,
-            0,
-            100,
-            100,
-            nullptr,
-            nullptr,
-            windowClass.hInstance,
-            nullptr);
-        return windowHandle != nullptr;
-    }
-
-    void DestroyProbeWindow(const WNDCLASSEXW& windowClass, HWND& windowHandle)
-    {
-        if (windowHandle)
-        {
-            DestroyWindow(windowHandle);
-            windowHandle = nullptr;
-        }
-
-        if (windowClass.lpszClassName)
-        {
-            UnregisterClassW(windowClass.lpszClassName, windowClass.hInstance);
-        }
-    }
-}
+#include "urh_dx_common.h"
 
 namespace UrhDx11HookInternal
 {
@@ -58,7 +9,7 @@ namespace UrhDx11HookInternal
 
         WNDCLASSEXW windowClass = {};
         HWND windowHandle = nullptr;
-        if (!CreateProbeWindow(windowClass, windowHandle))
+        if (!UrhDxCommon::CreateProbeWindow(L"UrhDx11HookProbeWindow", L"UrhDx11HookProbe", windowClass, windowHandle))
         {
             return false;
         }
@@ -67,7 +18,7 @@ namespace UrhDx11HookInternal
         if (!d3d11Module)
         {
             URH_DX11HOOK_LOG("ProbeVtables failed: LoadLibraryW(d3d11.dll) error=%lu", GetLastError());
-            DestroyProbeWindow(windowClass, windowHandle);
+            UrhDxCommon::DestroyProbeWindow(windowClass, windowHandle);
             return false;
         }
 
@@ -76,7 +27,7 @@ namespace UrhDx11HookInternal
         if (!d3d11CreateDeviceAndSwapChain)
         {
             URH_DX11HOOK_LOG("ProbeVtables failed: GetProcAddress(D3D11CreateDeviceAndSwapChain)");
-            DestroyProbeWindow(windowClass, windowHandle);
+            UrhDxCommon::DestroyProbeWindow(windowClass, windowHandle);
             return false;
         }
 
@@ -153,7 +104,7 @@ namespace UrhDx11HookInternal
             swapChain->Release();
         }
 
-        DestroyProbeWindow(windowClass, windowHandle);
+        UrhDxCommon::DestroyProbeWindow(windowClass, windowHandle);
         if (!success)
         {
             URH_DX11HOOK_LOG("ProbeVtables finished without a usable swapchain vtable.");

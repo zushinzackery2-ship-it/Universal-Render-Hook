@@ -1,54 +1,5 @@
 #include "urh_dx12_internal.h"
-
-namespace
-{
-    static constexpr const wchar_t* ProbeWindowClassName = L"UrhDx12HookProbeWindow";
-
-    bool CreateProbeWindow(WNDCLASSEXW& windowClass, HWND& windowHandle)
-    {
-        ZeroMemory(&windowClass, sizeof(windowClass));
-        windowClass.cbSize = sizeof(windowClass);
-        windowClass.style = CS_HREDRAW | CS_VREDRAW;
-        windowClass.lpfnWndProc = DefWindowProcW;
-        windowClass.hInstance = GetModuleHandleW(nullptr);
-        windowClass.lpszClassName = ProbeWindowClassName;
-
-        ATOM atom = RegisterClassExW(&windowClass);
-        if (atom == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
-        {
-            return false;
-        }
-
-        windowHandle = CreateWindowExW(
-            0,
-            ProbeWindowClassName,
-            L"UrhDx12HookProbe",
-            WS_OVERLAPPEDWINDOW,
-            0,
-            0,
-            100,
-            100,
-            nullptr,
-            nullptr,
-            windowClass.hInstance,
-            nullptr);
-        return windowHandle != nullptr;
-    }
-
-    void DestroyProbeWindow(const WNDCLASSEXW& windowClass, HWND& windowHandle)
-    {
-        if (windowHandle)
-        {
-            DestroyWindow(windowHandle);
-            windowHandle = nullptr;
-        }
-
-        if (windowClass.lpszClassName)
-        {
-            UnregisterClassW(windowClass.lpszClassName, windowClass.hInstance);
-        }
-    }
-}
+#include "urh_dx_common.h"
 
 namespace UrhDx12HookInternal
 {
@@ -60,7 +11,7 @@ namespace UrhDx12HookInternal
 
         WNDCLASSEXW windowClass = {};
         HWND windowHandle = nullptr;
-        if (!CreateProbeWindow(windowClass, windowHandle))
+        if (!UrhDxCommon::CreateProbeWindow(L"UrhDx12HookProbeWindow", L"UrhDx12HookProbe", windowClass, windowHandle))
         {
             URH_DX12HOOK_LOG("ProbeVtables failed: CreateProbeWindow");
             return false;
@@ -71,7 +22,7 @@ namespace UrhDx12HookInternal
         if (!dxgiModule || !d3d12Module)
         {
             URH_DX12HOOK_LOG("ProbeVtables failed: LoadLibrary dxgi=%p d3d12=%p", dxgiModule, d3d12Module);
-            DestroyProbeWindow(windowClass, windowHandle);
+            UrhDxCommon::DestroyProbeWindow(windowClass, windowHandle);
             return false;
         }
 
@@ -82,7 +33,7 @@ namespace UrhDx12HookInternal
         if (!createDxgiFactory || !d3d12CreateDevice)
         {
             URH_DX12HOOK_LOG("ProbeVtables failed: missing exports CreateDXGIFactory=%p D3D12CreateDevice=%p", createDxgiFactory, d3d12CreateDevice);
-            DestroyProbeWindow(windowClass, windowHandle);
+            UrhDxCommon::DestroyProbeWindow(windowClass, windowHandle);
             return false;
         }
 
@@ -174,7 +125,7 @@ namespace UrhDx12HookInternal
             factory->Release();
         }
 
-        DestroyProbeWindow(windowClass, windowHandle);
+        UrhDxCommon::DestroyProbeWindow(windowClass, windowHandle);
         URH_DX12HOOK_LOG(
             "ProbeVtables end: success=%d queueVtable=%p swapChainVtable=%p",
             success ? 1 : 0,

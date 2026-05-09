@@ -178,7 +178,7 @@ namespace UrhDx12HookInternal
             }
         }
 
-        if (g_state.commandListRecording && g_state.commandList)
+        if (g_state.commandListRecording.load(std::memory_order_relaxed) && g_state.commandList)
         {
             __try
             {
@@ -188,7 +188,7 @@ namespace UrhDx12HookInternal
             {
             }
 
-            g_state.commandListRecording = false;
+            g_state.commandListRecording.store(false);
         }
 
         for (UINT index = 0; index < MaxBackBuffers; ++index)

@@ -7,7 +7,7 @@
 #include "urh_autohook.h"
 #include "urh_dx11_hook.h"
 #include "urh_dx12_hook.h"
-#include "../include/urh/vulkan_hook.h"
+#include "urh_vulkan_hook.h"
 
 namespace UrhAutoHookInternal
 {

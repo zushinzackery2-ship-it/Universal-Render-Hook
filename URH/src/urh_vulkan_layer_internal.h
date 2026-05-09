@@ -135,7 +135,6 @@ namespace UrhVulkanLayerInternal
     extern std::unordered_map<std::uint64_t, VkDevice> g_queues;
     extern LONG g_loggedQueuePresentCalls;
 
-    std::uint64_t HandleKey(void* handle);
     std::uint32_t MakeVersion(std::uint32_t major, std::uint32_t minor, std::uint32_t patch);
 
     template <typename T>

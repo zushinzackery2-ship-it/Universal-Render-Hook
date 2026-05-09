@@ -15,7 +15,7 @@ namespace UrhDx12HookInternal
 
             for (UINT attempt = 0; attempt < 200; ++attempt)
             {
-                if (g_state.unloading)
+                if (g_state.unloading.load(std::memory_order_relaxed))
                 {
                     break;
                 }
@@ -28,7 +28,7 @@ namespace UrhDx12HookInternal
                 Sleep(100);
             }
 
-            InterlockedExchange(&g_state.bootstrapRequested, 0);
+            g_state.bootstrapRequested.store(0);
             return 1;
         }
     }
@@ -58,138 +58,6 @@ namespace UrhDx12HookInternal
         g_state.runtime.backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     }
 
-    bool PatchVtable(void** vtable, int index, void* hookFn, void** originalFn)
-    {
-        if (!vtable || !hookFn)
-        {
-            return false;
-        }
-
-        DWORD oldProtect = 0;
-        if (!VirtualProtect(&vtable[index], sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect))
-        {
-            return false;
-        }
-
-        if (originalFn)
-        {
-            *originalFn = vtable[index];
-        }
-
-        vtable[index] = hookFn;
-        VirtualProtect(&vtable[index], sizeof(void*), oldProtect, &oldProtect);
-        return true;
-    }
-
-    bool RestoreVtable(void** vtable, int index, void* originalFn)
-    {
-        if (!vtable || !originalFn)
-        {
-            return false;
-        }
-
-        DWORD oldProtect = 0;
-        if (!VirtualProtect(&vtable[index], sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect))
-        {
-            return false;
-        }
-
-        vtable[index] = originalFn;
-        VirtualProtect(&vtable[index], sizeof(void*), oldProtect, &oldProtect);
-        return true;
-    }
-
-    bool InstallHooks()
-    {
-        if (!ProbeVtables(g_state.probe))
-        {
-            return false;
-        }
-
-        auto rollback = []()
-        {
-            RestoreVtable(g_state.probe.swapChainVtable, 8, reinterpret_cast<void*>(g_state.originalPresent));
-            RestoreVtable(g_state.probe.swapChainVtable, 22, reinterpret_cast<void*>(g_state.originalPresent1));
-            RestoreVtable(
-                g_state.probe.swapChainVtable,
-                13,
-                reinterpret_cast<void*>(g_state.originalResizeBuffers));
-            RestoreVtable(
-                g_state.probe.commandQueueVtable,
-                10,
-                reinterpret_cast<void*>(g_state.originalExecuteCommandLists));
-            g_state.originalPresent = nullptr;
-            g_state.originalPresent1 = nullptr;
-            g_state.originalResizeBuffers = nullptr;
-            g_state.originalExecuteCommandLists = nullptr;
-        };
-
-        if (!PatchVtable(
-                g_state.probe.swapChainVtable,
-                8,
-                reinterpret_cast<void*>(&HookPresent),
-                reinterpret_cast<void**>(&g_state.originalPresent)))
-        {
-            return false;
-        }
-
-        PatchVtable(
-            g_state.probe.swapChainVtable,
-            22,
-            reinterpret_cast<void*>(&HookPresent1),
-            reinterpret_cast<void**>(&g_state.originalPresent1));
-
-        if (!PatchVtable(
-                g_state.probe.swapChainVtable,
-                13,
-                reinterpret_cast<void*>(&HookResizeBuffers),
-                reinterpret_cast<void**>(&g_state.originalResizeBuffers)))
-        {
-            rollback();
-            return false;
-        }
-
-        if (!PatchVtable(
-                g_state.probe.commandQueueVtable,
-                10,
-                reinterpret_cast<void*>(&HookExecuteCommandLists),
-                reinterpret_cast<void**>(&g_state.originalExecuteCommandLists)))
-        {
-            rollback();
-            return false;
-        }
-
-        return true;
-    }
-
-    void UninstallHooks()
-    {
-        RestoreVtable(g_state.probe.swapChainVtable, 8, reinterpret_cast<void*>(g_state.originalPresent));
-        RestoreVtable(g_state.probe.swapChainVtable, 22, reinterpret_cast<void*>(g_state.originalPresent1));
-        RestoreVtable(
-            g_state.probe.swapChainVtable,
-            13,
-            reinterpret_cast<void*>(g_state.originalResizeBuffers));
-        RestoreVtable(
-            g_state.probe.commandQueueVtable,
-            10,
-            reinterpret_cast<void*>(g_state.originalExecuteCommandLists));
-
-        if (g_state.trackedSwapChainVtable && g_state.originalResizeBuffers1)
-        {
-            RestoreVtable(
-                g_state.trackedSwapChainVtable,
-                39,
-                reinterpret_cast<void*>(g_state.originalResizeBuffers1));
-        }
-
-        g_state.originalPresent = nullptr;
-        g_state.originalPresent1 = nullptr;
-        g_state.originalResizeBuffers = nullptr;
-        g_state.originalResizeBuffers1 = nullptr;
-        g_state.originalExecuteCommandLists = nullptr;
-        ZeroMemory(&g_state.probe, sizeof(g_state.probe));
-    }
 }
 
 namespace UrhDx12Hook
@@ -229,10 +97,10 @@ namespace UrhDx12Hook
         ResetRuntime();
 
         g_state.backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-        g_state.unloading = false;
-        g_state.suspendRendering = false;
+        g_state.unloading.store(false);
+        g_state.suspendRendering.store(false);
         g_state.deviceLost = false;
-        g_state.presentInFlight = 0;
+        g_state.presentInFlight.store(0);
         g_state.frameCount = 0;
         if (!InstallHooks())
         {
@@ -265,7 +133,8 @@ namespace UrhDx12Hook
             return true;
         }
 
-        if (InterlockedCompareExchange(&g_state.bootstrapRequested, 1, 0) != 0)
+        LONG expected = 0;
+        if (!g_state.bootstrapRequested.compare_exchange_strong(expected, 1))
         {
             return true;
         }
@@ -273,7 +142,7 @@ namespace UrhDx12Hook
         HANDLE threadHandle = CreateThread(nullptr, 0, DefaultTestBootstrapThread, nullptr, 0, nullptr);
         if (!threadHandle)
         {
-            InterlockedExchange(&g_state.bootstrapRequested, 0);
+            g_state.bootstrapRequested.store(0);
             return false;
         }
 
@@ -290,12 +159,12 @@ namespace UrhDx12Hook
             return;
         }
 
-        g_state.unloading = true;
-        g_state.suspendRendering = true;
-        InterlockedExchange(&g_state.bootstrapRequested, 0);
+        g_state.unloading.store(true);
+        g_state.suspendRendering.store(true);
+        g_state.bootstrapRequested.store(0);
 
         DWORD waitedMs = 0;
-        while (g_state.presentInFlight > 0 && waitedMs < g_state.desc.shutdownWaitTimeoutMs)
+        while (g_state.presentInFlight.load() > 0 && waitedMs < g_state.desc.shutdownWaitTimeoutMs)
         {
             Sleep(10);
             waitedMs += 10;

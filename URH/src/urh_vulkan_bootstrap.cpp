@@ -32,7 +32,7 @@ namespace UrhVulkanHookInternal
         }
 
         g_state.backendRecognized = true;
-        URH_VULKAN_LOG(
+        URH_VULKANHOOK_LOG(
             "Backend recognized: reason=%s",
             reason ? reason : "<unknown>");
     }
@@ -105,12 +105,12 @@ namespace UrhVulkanHook
     {
         using namespace UrhVulkanHookInternal;
 
-        URH_VULKAN_LOG("Init entered");
+        URH_VULKANHOOK_LOG("Init entered");
         {
             std::lock_guard<std::mutex> lock(g_state.mutex);
             if (g_state.installed)
             {
-                URH_VULKAN_LOG("Init called while already installed");
+                URH_VULKANHOOK_LOG("Init called while already installed");
                 return true;
             }
 
@@ -133,7 +133,7 @@ namespace UrhVulkanHook
             g_state.installed = true;
         }
 
-        URH_VULKAN_LOG("Init success: layer-mode only.");
+        URH_VULKANHOOK_LOG("Init success: layer-mode only.");
         return true;
     }
 

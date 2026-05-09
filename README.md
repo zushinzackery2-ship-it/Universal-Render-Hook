@@ -150,15 +150,22 @@ Universal-Render-Hook/
     │   └── vulkan*.h          # Vulkan Hook API
     └── src/
         ├── urh_autohook*.cpp          # AutoHook 仲裁
+        ├── urh_dx_common.h/cpp        # DX11/DX12 公共层 (PatchVtable 等)
         ├── urh_dx11_*.cpp             # DX11 Hook 实现
         ├── urh_dx12_*.cpp             # DX12 Hook 实现
         ├── urh_vulkan_bootstrap.cpp   # Vulkan 初始化 / 状态查询
-        ├── urh_vulkan_tracking.cpp    # Vulkan 运行时跟踪
-        ├── urh_vulkan_runtime_probe.cpp # Vulkan 运行时探测
+        ├── urh_vulkan_tracking.cpp    # Vulkan 运行时跟踪 (Swapchain 生命周期)
+        ├── urh_vulkan_tracking_helpers.cpp # Vulkan 跟踪辅助 (窗口探测等)
+        ├── urh_vulkan_dispatch.cpp    # Vulkan DispatchPresent
+        ├── urh_vulkan_probe_helpers.cpp # Vulkan 探测辅助函数
+        ├── urh_vulkan_probe_thread.cpp  # Vulkan 探测线程与控制
+        ├── urh_vulkan_common.h        # Vulkan 公共工具 (HandleKey)
         ├── urh_vulkan_layer_*.cpp     # Vulkan Layer 导出与 Dispatch
         ├── urh_vulkan_internal.h      # Vulkan 内部状态
         ├── urh_vulkan_layer_internal.h # Vulkan Layer 内部类型
-        ├── urh_vulkan_minimal.h       # 最小 Vulkan 类型定义 (无 SDK 依赖)
+        ├── urh_vulkan_types_minimal.h # 最小 Vulkan 类型定义
+        ├── urh_vulkan_pfns_minimal.h  # 最小 Vulkan 函数指针
+        ├── urh_vulkan_minimal.h       # 向后兼容 shim
         └── urh_console_logger.h       # 日志
 ```
 

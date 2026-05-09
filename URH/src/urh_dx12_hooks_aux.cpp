@@ -6,7 +6,7 @@ namespace
     {
         using namespace UrhDx12HookInternal;
 
-        g_state.suspendRendering = true;
+        g_state.suspendRendering.store(true);
         if (g_state.renderCsReady)
         {
             EnterCriticalSection(&g_state.renderCs);
@@ -51,7 +51,7 @@ namespace UrhDx12HookInternal
                 swapChainFlags);
         }
 
-        g_state.suspendRendering = false;
+        g_state.suspendRendering.store(false);
         return hr;
     }
 
@@ -81,7 +81,7 @@ namespace UrhDx12HookInternal
                 presentQueue);
         }
 
-        g_state.suspendRendering = false;
+        g_state.suspendRendering.store(false);
         return hr;
     }
 
@@ -90,7 +90,7 @@ namespace UrhDx12HookInternal
         UINT numCommandLists,
         ID3D12CommandList* const* commandLists)
     {
-        if (!g_state.unloading && !g_state.deviceLost)
+        if (!g_state.unloading.load(std::memory_order_relaxed) && !g_state.deviceLost)
         {
             __try
             {
@@ -105,10 +105,7 @@ namespace UrhDx12HookInternal
                             numCommandLists);
                     }
                     queue->AddRef();
-                    auto* oldQueue = reinterpret_cast<ID3D12CommandQueue*>(
-                        InterlockedExchangePointer(
-                            reinterpret_cast<volatile PVOID*>(&g_state.pendingQueue),
-                            queue));
+                    auto* oldQueue = g_state.pendingQueue.exchange(queue);
                     if (oldQueue)
                     {
                         oldQueue->Release();

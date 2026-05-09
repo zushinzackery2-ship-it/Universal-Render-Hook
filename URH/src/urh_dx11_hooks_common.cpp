@@ -1,30 +1,16 @@
 #include "urh_dx11_internal.h"
+#include "urh_dx_common.h"
 
 namespace UrhDx11HookInternal
 {
     bool IsInteractiveVisible()
     {
-        bool visible = false;
-
-        if (!g_state.desc.isVisible)
-        {
-            return visible;
-        }
-
-        __try
-        {
-            return visible || g_state.desc.isVisible(g_state.desc.userData);
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER)
-        {
-            g_state.deviceLost = true;
-            return visible;
-        }
+        return UrhDxCommon::IsInteractiveVisible(g_state);
     }
 
     LRESULT CALLBACK HookedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        if (g_state.unloading || !g_state.backendReady || !g_state.originalWndProc)
+        if (g_state.unloading.load(std::memory_order_relaxed) || !g_state.backendReady || !g_state.originalWndProc)
         {
             if (g_state.originalWndProc)
             {

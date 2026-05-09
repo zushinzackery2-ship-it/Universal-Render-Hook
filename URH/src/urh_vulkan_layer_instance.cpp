@@ -40,7 +40,7 @@ namespace UrhVulkanLayerInternal
         const VkAllocationCallbacks* allocator,
         VkInstance* instance)
     {
-        URH_VULKAN_LOG("Layer vkCreateInstance entered");
+        URH_VULKANHOOK_LOG("Layer vkCreateInstance entered");
         {
             std::lock_guard<std::mutex> lock(UrhVulkanHookInternal::g_state.mutex);
             UrhVulkanHookInternal::MarkLayerModeActiveLocked();
@@ -78,7 +78,7 @@ namespace UrhVulkanLayerInternal
                 nextGipa(*instance, "vkEnumerateDeviceExtensionProperties"));
 
             std::lock_guard<std::mutex> lock(g_layerMutex);
-            g_instances[HandleKey(*instance)] = dispatch;
+            g_instances[UrhVulkanCommon::HandleKey(*instance)] = dispatch;
         }
 
         return result;
@@ -101,7 +101,7 @@ namespace UrhVulkanLayerInternal
             std::lock_guard<std::mutex> lock(g_layerMutex);
             for (std::uint32_t index = 0; index < *physicalDeviceCount; ++index)
             {
-                g_physicalDeviceOwners[HandleKey(physicalDevices[index])] = instance;
+                g_physicalDeviceOwners[UrhVulkanCommon::HandleKey(physicalDevices[index])] = instance;
             }
         }
 
@@ -114,7 +114,7 @@ namespace UrhVulkanLayerInternal
         const VkAllocationCallbacks* allocator,
         VkDevice* device)
     {
-        URH_VULKAN_LOG("Layer vkCreateDevice entered");
+        URH_VULKANHOOK_LOG("Layer vkCreateDevice entered");
         {
             std::lock_guard<std::mutex> lock(UrhVulkanHookInternal::g_state.mutex);
             UrhVulkanHookInternal::MarkLayerModeActiveLocked();
@@ -165,7 +165,7 @@ namespace UrhVulkanLayerInternal
             dispatch.queuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(nextGdpa(*device, "vkQueuePresentKHR"));
 
             std::lock_guard<std::mutex> lock(g_layerMutex);
-            g_devices[HandleKey(*device)] = dispatch;
+            g_devices[UrhVulkanCommon::HandleKey(*device)] = dispatch;
         }
 
         return result;

@@ -1,6 +1,6 @@
 #include "urh_vulkan_internal.h"
 
-namespace
+namespace UrhVulkanHookInternal
 {
     bool SafeCreateInstance(
         PFN_vkCreateInstance createInstance,
@@ -112,8 +112,6 @@ namespace
 
     bool ProbeRuntimeTargetsOnce()
     {
-        using namespace UrhVulkanHookInternal;
-
         HMODULE vulkanModule = nullptr;
         GetProcAddressFn realGetProcAddress = nullptr;
         {
@@ -130,7 +128,7 @@ namespace
 
         if (!vulkanModule || !realGetProcAddress)
         {
-            URH_VULKAN_LOG("Runtime probe skipped: vulkan loader unresolved");
+            URH_VULKANHOOK_LOG("Runtime probe skipped: vulkan loader unresolved");
             return false;
         }
 
@@ -140,11 +138,11 @@ namespace
             realGetProcAddress(vulkanModule, "vkGetInstanceProcAddr"));
         if (!createInstance || !getInstanceProcAddr)
         {
-            URH_VULKAN_LOG("Runtime probe skipped: vkCreateInstance/vkGetInstanceProcAddr unresolved");
+            URH_VULKANHOOK_LOG("Runtime probe skipped: vkCreateInstance/vkGetInstanceProcAddr unresolved");
             return false;
         }
 
-        URH_VULKAN_LOG("Runtime probe begin");
+        URH_VULKANHOOK_LOG("Runtime probe begin");
 
         VkApplicationInfo applicationInfo = {};
         applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -172,7 +170,7 @@ namespace
                     instanceResult,
                     createInstanceException))
             {
-                URH_VULKAN_LOG(
+                URH_VULKANHOOK_LOG(
                     "Runtime probe exception: vkCreateInstance code=0x%08X",
                     createInstanceException);
                 break;
@@ -180,7 +178,7 @@ namespace
 
             if (instanceResult != VK_SUCCESS || !instance)
             {
-                URH_VULKAN_LOG(
+                URH_VULKANHOOK_LOG(
                     "Runtime probe failed: vkCreateInstance result=%d instance=%p",
                     instanceResult,
                     instance);
@@ -200,7 +198,7 @@ namespace
                     getInstanceProcAddr(instance, "vkCreateDevice"));
             if (!enumeratePhysicalDevices || !getQueueFamilyProperties || !createDevice)
             {
-                URH_VULKAN_LOG("Runtime probe failed: instance-level commands unresolved");
+                URH_VULKANHOOK_LOG("Runtime probe failed: instance-level commands unresolved");
                 break;
             }
 
@@ -208,7 +206,7 @@ namespace
             if (enumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr) != VK_SUCCESS ||
                 physicalDeviceCount == 0)
             {
-                URH_VULKAN_LOG(
+                URH_VULKANHOOK_LOG(
                     "Runtime probe failed: enumeratePhysicalDevices count=%u",
                     physicalDeviceCount);
                 break;
@@ -218,7 +216,7 @@ namespace
             if (enumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) != VK_SUCCESS ||
                 physicalDevices.empty())
             {
-                URH_VULKAN_LOG("Runtime probe failed: enumeratePhysicalDevices(list)");
+                URH_VULKANHOOK_LOG("Runtime probe failed: enumeratePhysicalDevices(list)");
                 break;
             }
 
@@ -228,7 +226,7 @@ namespace
                     getQueueFamilyProperties,
                     queueFamilyIndex))
             {
-                URH_VULKAN_LOG("Runtime probe failed: no usable queue family");
+                URH_VULKANHOOK_LOG("Runtime probe failed: no usable queue family");
                 break;
             }
 
@@ -261,7 +259,7 @@ namespace
                     deviceResult,
                     createDeviceException))
             {
-                URH_VULKAN_LOG(
+                URH_VULKANHOOK_LOG(
                     "Runtime probe exception: vkCreateDevice code=0x%08X",
                     createDeviceException);
                 break;
@@ -269,7 +267,7 @@ namespace
 
             if (deviceResult != VK_SUCCESS || !device)
             {
-                URH_VULKAN_LOG(
+                URH_VULKANHOOK_LOG(
                     "Runtime probe failed: vkCreateDevice result=%d device=%p",
                     deviceResult,
                     device);
@@ -283,7 +281,7 @@ namespace
                 : nullptr;
             if (!getDeviceProcAddr)
             {
-                URH_VULKAN_LOG("Runtime probe failed: vkGetDeviceProcAddr unresolved");
+                URH_VULKANHOOK_LOG("Runtime probe failed: vkGetDeviceProcAddr unresolved");
                 break;
             }
 
@@ -309,7 +307,7 @@ namespace
                         address,
                         getProcException))
                 {
-                    URH_VULKAN_LOG(
+                    URH_VULKANHOOK_LOG(
                         "Runtime probe exception: getDeviceProcAddr(%s) code=0x%08X",
                         spec,
                         getProcException);
@@ -321,7 +319,7 @@ namespace
                     address = reinterpret_cast<void*>(getInstanceProcAddr(instance, spec));
                 }
 
-                URH_VULKAN_LOG(
+                URH_VULKANHOOK_LOG(
                     "Runtime probe result: %s=%p",
                     spec,
                     address);
@@ -351,96 +349,9 @@ namespace
             }
         }
 
-        URH_VULKAN_LOG(
+        URH_VULKANHOOK_LOG(
             "Runtime probe end: armedAnyTarget=%d",
             resolvedAnyTarget ? 1 : 0);
         return resolvedAnyTarget;
-    }
-
-    void RuntimeProbeThreadMain()
-    {
-        using namespace UrhVulkanHookInternal;
-
-        {
-            std::lock_guard<std::mutex> lock(g_state.mutex);
-            g_state.runtimeProbeThreadId.store(GetCurrentThreadId());
-        }
-
-        URH_VULKAN_LOG(
-            "Runtime probe thread started: tid=%lu",
-            static_cast<unsigned long>(GetCurrentThreadId()));
-
-        for (;;)
-        {
-            {
-                std::unique_lock<std::mutex> lock(g_state.mutex);
-                g_state.runtimeProbeCondition.wait(
-                    lock,
-                    []
-                    {
-                        return g_state.runtimeProbeStopRequested ||
-                            g_state.runtimeProbeRequested;
-                    });
-
-                if (g_state.runtimeProbeStopRequested)
-                {
-                    break;
-                }
-
-                g_state.runtimeProbeRequested = false;
-            }
-
-            ProbeRuntimeTargetsOnce();
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(g_state.mutex);
-            g_state.runtimeProbeThreadId.store(0);
-        }
-
-        URH_VULKAN_LOG("Runtime probe thread stopped");
-    }
-}
-
-namespace UrhVulkanHookInternal
-{
-    void EnsureRuntimeProbeThreadLocked()
-    {
-        if (g_state.layerModeEnabled || g_state.runtimeProbeThread.joinable())
-        {
-            return;
-        }
-
-        g_state.runtimeProbeStopRequested = false;
-        g_state.runtimeProbeRequested = false;
-        g_state.runtimeProbeThread = std::thread(RuntimeProbeThreadMain);
-    }
-
-    void RequestRuntimeProbeLocked(const char* reason)
-    {
-        if (!g_state.installed || g_state.layerModeEnabled || g_state.runtimeProbeCompleted)
-        {
-            return;
-        }
-
-        EnsureRuntimeProbeThreadLocked();
-        g_state.runtimeProbeRequested = true;
-        g_state.runtimeProbeCondition.notify_one();
-        URH_VULKAN_LOG(
-            "Runtime probe requested: reason=%s",
-            reason ? reason : "<unknown>");
-    }
-
-    void StopRuntimeProbeThreadLocked(std::thread& threadToJoin)
-    {
-        if (!g_state.runtimeProbeThread.joinable())
-        {
-            return;
-        }
-
-        g_state.runtimeProbeStopRequested = true;
-        g_state.runtimeProbeRequested = false;
-        g_state.runtimeProbeCondition.notify_all();
-        threadToJoin = std::move(g_state.runtimeProbeThread);
     }
 }

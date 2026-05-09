@@ -1,5 +1,3 @@
-#include "pch.h"
-
 #include "urh_autohook_internal.h"
 
 namespace UrhAutoHookInternal

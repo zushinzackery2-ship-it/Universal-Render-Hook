@@ -11,7 +11,7 @@ namespace UrhVulkanLayerInternal
         }
 
         std::lock_guard<std::mutex> lock(g_layerMutex);
-        g_instances.erase(HandleKey(instance));
+        g_instances.erase(UrhVulkanCommon::HandleKey(instance));
         for (auto it = g_physicalDeviceOwners.begin(); it != g_physicalDeviceOwners.end();)
         {
             it = (it->second == instance) ? g_physicalDeviceOwners.erase(it) : std::next(it);
@@ -27,7 +27,7 @@ namespace UrhVulkanLayerInternal
         }
 
         std::lock_guard<std::mutex> lock(g_layerMutex);
-        g_devices.erase(HandleKey(device));
+        g_devices.erase(UrhVulkanCommon::HandleKey(device));
         for (auto it = g_queues.begin(); it != g_queues.end();)
         {
             it = (it->second == device) ? g_queues.erase(it) : std::next(it);
@@ -50,14 +50,14 @@ namespace UrhVulkanLayerInternal
         if (queue && *queue)
         {
             UrhVulkanHookInternal::TrackQueueResolved(*queue, device, queueFamilyIndex);
-            URH_VULKAN_LOG(
+            URH_VULKANHOOK_LOG(
                 "Layer vkGetDeviceQueue mapped queue=%p device=%p family=%u index=%u",
                 *queue,
                 device,
                 queueFamilyIndex,
                 queueIndex);
             std::lock_guard<std::mutex> lock(g_layerMutex);
-            g_queues[HandleKey(*queue)] = device;
+            g_queues[UrhVulkanCommon::HandleKey(*queue)] = device;
         }
     }
 
@@ -76,14 +76,14 @@ namespace UrhVulkanLayerInternal
         if (queue && *queue && queueInfo)
         {
             UrhVulkanHookInternal::TrackQueueResolved(*queue, device, queueInfo->queueFamilyIndex);
-            URH_VULKAN_LOG(
+            URH_VULKANHOOK_LOG(
                 "Layer vkGetDeviceQueue2 mapped queue=%p device=%p family=%u index=%u",
                 *queue,
                 device,
                 queueInfo->queueFamilyIndex,
                 queueInfo->queueIndex);
             std::lock_guard<std::mutex> lock(g_layerMutex);
-            g_queues[HandleKey(*queue)] = device;
+            g_queues[UrhVulkanCommon::HandleKey(*queue)] = device;
         }
     }
 

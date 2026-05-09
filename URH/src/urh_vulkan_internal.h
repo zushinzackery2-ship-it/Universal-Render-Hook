@@ -12,10 +12,16 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../include/urh/vulkan_hook.h"
-#include "urh_console_logger.h"
+#include "urh_vulkan_hook.h"
+#include "urh_vulkan_common.h"
 #include "urh_vulkan_minimal.h"
-#define URH_VULKAN_LOG(...) ConsoleLogger::Log(__VA_ARGS__)
+
+#if __has_include("urh_console_logger.h")
+#include "urh_console_logger.h"
+#define URH_VULKANHOOK_LOG(...) ConsoleLogger::Log(__VA_ARGS__)
+#else
+#define URH_VULKANHOOK_LOG(...) do { } while (0)
+#endif
 
 namespace UrhVulkanHookInternal
 {
@@ -85,15 +91,11 @@ namespace UrhVulkanHookInternal
 
     extern ModuleState g_state;
 
-    inline std::uint64_t HandleKey(void* handle)
-    {
-        return static_cast<std::uint64_t>(reinterpret_cast<UINT_PTR>(handle));
-    }
-
     void FillDefaultDesc(UrhVulkanHookDesc& desc);
     void ResetRuntime(UrhVulkanHookRuntime& runtime);
     void ResetTransientStateLocked();
     void MarkBackendRecognizedLocked(const char* reason);
+    bool ProbeRuntimeTargetsOnce();
     void EnsureRuntimeProbeThreadLocked();
     void RequestRuntimeProbeLocked(const char* reason);
     void StopRuntimeProbeThreadLocked(std::thread& threadToJoin);
@@ -121,6 +123,11 @@ namespace UrhVulkanHookInternal
     void TrackQueueResolved(VkQueue queue, VkDevice device, UINT queueFamilyIndex);
     void TrackLateSwapchainDevice(VkDevice device, VkSwapchainKHR swapchain);
     bool TryBootstrapLateSwapchainLocked(VkQueue queue, VkSwapchainKHR swapchain);
+    bool IsRuntimeReadyForCapture(const UrhVulkanHookRuntime& runtime);
+    bool IsCandidateWindow(HWND hwnd);
+    float UpdateWindowMetrics(HWND hwnd, float& width, float& height);
+    HWND FindProcessRenderWindow();
+    void RefreshRuntimeFromTrackedSwapchainLocked(VkSwapchainKHR swapchain);
 
     template <typename T>
     inline T ResolveLoaderExport(const char* procName)

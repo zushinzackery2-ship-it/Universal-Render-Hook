@@ -82,7 +82,7 @@ namespace UrhVulkanLayerInternal
 
         if (InterlockedIncrement(&g_loggedQueuePresentCalls) <= 8)
         {
-            URH_VULKAN_LOG(
+            URH_VULKANHOOK_LOG(
                 "Layer vkQueuePresentKHR queue=%p swapchainCount=%u",
                 queue,
                 presentInfo ? presentInfo->swapchainCount : 0);
@@ -162,7 +162,7 @@ namespace UrhVulkanLayerInternal
     VK_LAYER_EXPORT VKAPI_ATTR VkResult VKAPI_CALL
     vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterfaceLocal* versionStruct)
     {
-        URH_VULKAN_LOG("Layer negotiate interface entered");
+        URH_VULKANHOOK_LOG("Layer negotiate interface entered");
         if (!versionStruct || versionStruct->loaderLayerInterfaceVersion < 2)
         {
             return VK_ERROR_INITIALIZATION_FAILED;

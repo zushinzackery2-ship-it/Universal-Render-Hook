@@ -87,7 +87,7 @@ namespace UrhDx12HookInternal
         }
 
         auto* pendingQueue = reinterpret_cast<ID3D12CommandQueue*>(
-            InterlockedExchangePointer(reinterpret_cast<volatile PVOID*>(&g_state.pendingQueue), nullptr));
+            g_state.pendingQueue.exchange(nullptr));
         if (pendingQueue)
         {
             pendingQueue->Release();

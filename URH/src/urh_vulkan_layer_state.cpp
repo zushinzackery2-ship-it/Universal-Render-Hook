@@ -9,11 +9,6 @@ namespace UrhVulkanLayerInternal
     std::unordered_map<std::uint64_t, VkDevice> g_queues;
     LONG g_loggedQueuePresentCalls = 0;
 
-    std::uint64_t HandleKey(void* handle)
-    {
-        return static_cast<std::uint64_t>(reinterpret_cast<UINT_PTR>(handle));
-    }
-
     std::uint32_t MakeVersion(std::uint32_t major, std::uint32_t minor, std::uint32_t patch)
     {
         return (major << 22) | (minor << 12) | patch;
@@ -77,7 +72,7 @@ namespace UrhVulkanLayerInternal
     bool FindInstanceDispatch(VkInstance instance, InstanceDispatch& dispatch)
     {
         std::lock_guard<std::mutex> lock(g_layerMutex);
-        const auto it = g_instances.find(HandleKey(instance));
+        const auto it = g_instances.find(UrhVulkanCommon::HandleKey(instance));
         if (it == g_instances.end())
         {
             return false;
@@ -90,7 +85,7 @@ namespace UrhVulkanLayerInternal
     bool FindDeviceDispatch(VkDevice device, DeviceDispatch& dispatch)
     {
         std::lock_guard<std::mutex> lock(g_layerMutex);
-        const auto it = g_devices.find(HandleKey(device));
+        const auto it = g_devices.find(UrhVulkanCommon::HandleKey(device));
         if (it == g_devices.end())
         {
             return false;
@@ -103,13 +98,13 @@ namespace UrhVulkanLayerInternal
     bool FindQueueDispatch(VkQueue queue, DeviceDispatch& dispatch)
     {
         std::lock_guard<std::mutex> lock(g_layerMutex);
-        const auto queueIt = g_queues.find(HandleKey(queue));
+        const auto queueIt = g_queues.find(UrhVulkanCommon::HandleKey(queue));
         if (queueIt == g_queues.end())
         {
             return false;
         }
 
-        const auto deviceIt = g_devices.find(HandleKey(queueIt->second));
+        const auto deviceIt = g_devices.find(UrhVulkanCommon::HandleKey(queueIt->second));
         if (deviceIt == g_devices.end())
         {
             return false;
@@ -123,7 +118,7 @@ namespace UrhVulkanLayerInternal
     {
         {
             std::lock_guard<std::mutex> lock(g_layerMutex);
-            const auto it = g_physicalDeviceOwners.find(HandleKey(physicalDevice));
+            const auto it = g_physicalDeviceOwners.find(UrhVulkanCommon::HandleKey(physicalDevice));
             if (it != g_physicalDeviceOwners.end())
             {
                 return it->second;
@@ -157,7 +152,7 @@ namespace UrhVulkanLayerInternal
             {
                 if (physicalDevices[index] == physicalDevice)
                 {
-                    g_physicalDeviceOwners[HandleKey(physicalDevice)] = instance;
+                    g_physicalDeviceOwners[UrhVulkanCommon::HandleKey(physicalDevice)] = instance;
                     return instance;
                 }
             }

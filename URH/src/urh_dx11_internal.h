@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <atomic>
 #include <d3d11.h>
 #include <d3d11_4.h>
 #include <dxgi1_4.h>
@@ -54,9 +55,9 @@ namespace UrhDx11HookInternal
         bool installed;
         bool backendReady;
         bool deviceLost;
-        volatile bool unloading;
-        volatile bool suspendRendering;
-        volatile LONG presentInFlight;
+        std::atomic<bool> unloading{false};
+        std::atomic<bool> suspendRendering{false};
+        std::atomic<LONG> presentInFlight{0};
 
         CRITICAL_SECTION renderCs;
         bool renderCsReady;
@@ -68,20 +69,8 @@ namespace UrhDx11HookInternal
 
     void ResetRuntime();
     void FillDefaultDesc(UrhDx11HookDesc& desc);
-    bool NeedsUrhBackend();
 
     bool ProbeVtables(Dx11HookProbeData& probeData);
-
-    bool PatchVtable(
-        void** vtable,
-        int index,
-        void* hookFn,
-        void** originalFn);
-
-    bool RestoreVtable(
-        void** vtable,
-        int index,
-        void* originalFn);
 
     bool InstallHooks();
     void UninstallHooks();
@@ -94,8 +83,6 @@ namespace UrhDx11HookInternal
     void ShutdownBackends(bool finalShutdown);
 
     bool IsInteractiveVisible();
-    void UpdateDefaultDebugState();
-    void RenderDebugUi();
 
     PresentFn ResolvePresentFn(IDXGISwapChain* swapChain);
 

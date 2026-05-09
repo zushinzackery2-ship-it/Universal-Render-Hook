@@ -1,4 +1,5 @@
 #include "urh_dx11_internal.h"
+#include "urh_dx_common.h"
 
 namespace UrhDx11HookInternal
 {
@@ -17,56 +18,10 @@ namespace UrhDx11HookInternal
         desc.startVisible = true;
     }
 
-    bool NeedsUrhBackend()
-    {
-        return false;
-    }
-
     void ResetRuntime()
     {
         ZeroMemory(&g_state.runtime, sizeof(g_state.runtime));
         g_state.runtime.backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    }
-
-    bool PatchVtable(void** vtable, int index, void* hookFn, void** originalFn)
-    {
-        if (!vtable || !hookFn)
-        {
-            return false;
-        }
-
-        DWORD oldProtect = 0;
-        if (!VirtualProtect(&vtable[index], sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect))
-        {
-            return false;
-        }
-
-        if (originalFn)
-        {
-            *originalFn = vtable[index];
-        }
-
-        vtable[index] = hookFn;
-        VirtualProtect(&vtable[index], sizeof(void*), oldProtect, &oldProtect);
-        return true;
-    }
-
-    bool RestoreVtable(void** vtable, int index, void* originalFn)
-    {
-        if (!vtable || !originalFn)
-        {
-            return false;
-        }
-
-        DWORD oldProtect = 0;
-        if (!VirtualProtect(&vtable[index], sizeof(void*), PAGE_EXECUTE_READWRITE, &oldProtect))
-        {
-            return false;
-        }
-
-        vtable[index] = originalFn;
-        VirtualProtect(&vtable[index], sizeof(void*), oldProtect, &oldProtect);
-        return true;
     }
 
     bool InstallHooks()
@@ -77,7 +32,7 @@ namespace UrhDx11HookInternal
             return false;
         }
 
-        if (!PatchVtable(
+        if (!UrhDxCommon::PatchVtable(
                 g_state.probe.swapChainVtable,
                 8,
                 reinterpret_cast<void*>(&HookPresent),
@@ -104,7 +59,7 @@ namespace UrhDx11HookInternal
             "UninstallHooks called. probeVtable=%p originalPresent=%p",
             g_state.probe.swapChainVtable,
             reinterpret_cast<void*>(g_state.originalPresent));
-        RestoreVtable(g_state.probe.swapChainVtable, 8, reinterpret_cast<void*>(g_state.originalPresent));
+        UrhDxCommon::RestoreVtable(g_state.probe.swapChainVtable, 8, reinterpret_cast<void*>(g_state.originalPresent));
         g_state.originalPresent = nullptr;
         ZeroMemory(&g_state.probe, sizeof(g_state.probe));
     }
@@ -146,10 +101,10 @@ namespace UrhDx11Hook
         ResetRuntime();
 
         g_state.backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-        g_state.unloading = false;
-        g_state.suspendRendering = false;
+        g_state.unloading.store(false);
+        g_state.suspendRendering.store(false);
         g_state.deviceLost = false;
-        g_state.presentInFlight = 0;
+        g_state.presentInFlight.store(0);
         g_state.frameCount = 0;
         if (!InstallHooks())
         {
@@ -176,11 +131,11 @@ namespace UrhDx11Hook
             return;
         }
 
-        g_state.unloading = true;
-        g_state.suspendRendering = true;
+        g_state.unloading.store(true);
+        g_state.suspendRendering.store(true);
 
         DWORD waitedMs = 0;
-        while (g_state.presentInFlight > 0 && waitedMs < g_state.desc.shutdownWaitTimeoutMs)
+        while (g_state.presentInFlight.load() > 0 && waitedMs < g_state.desc.shutdownWaitTimeoutMs)
         {
             Sleep(10);
             waitedMs += 10;

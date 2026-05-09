@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <atomic>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
@@ -72,7 +73,7 @@ namespace UrhDx12HookInternal
 
         ID3D12Device* device;
         ID3D12CommandQueue* commandQueue;
-        ID3D12CommandQueue* pendingQueue;
+        std::atomic<ID3D12CommandQueue*> pendingQueue{nullptr};
         ID3D12DescriptorHeap* rtvHeap;
         ID3D12DescriptorHeap* srvHeap;
         ID3D12CommandAllocator* commandAllocators[MaxBackBuffers];
@@ -97,11 +98,11 @@ namespace UrhDx12HookInternal
         bool installed;
         bool backendReady;
         bool deviceLost;
-        volatile LONG bootstrapRequested;
-        volatile bool unloading;
-        volatile bool suspendRendering;
-        volatile bool commandListRecording;
-        volatile LONG presentInFlight;
+        std::atomic<LONG> bootstrapRequested{0};
+        std::atomic<bool> unloading{false};
+        std::atomic<bool> suspendRendering{false};
+        std::atomic<bool> commandListRecording{false};
+        std::atomic<LONG> presentInFlight{0};
 
         CRITICAL_SECTION renderCs;
         bool renderCsReady;
@@ -117,17 +118,6 @@ namespace UrhDx12HookInternal
 
     bool ProbeVtables(Dx12HookProbeData& probeData);
 
-    bool PatchVtable(
-        void** vtable,
-        int index,
-        void* hookFn,
-        void** originalFn);
-
-    bool RestoreVtable(
-        void** vtable,
-        int index,
-        void* originalFn);
-
     bool InstallHooks();
     void UninstallHooks();
 
@@ -138,8 +128,6 @@ namespace UrhDx12HookInternal
     void ShutdownBackends(bool finalShutdown);
 
     bool IsInteractiveVisible();
-    void UpdateDefaultDebugState();
-    void RenderDebugUi();
     void TryHookResizeBuffers1(IDXGISwapChain* swapChain);
 
     PresentFn ResolvePresentFn(IDXGISwapChain* swapChain);
