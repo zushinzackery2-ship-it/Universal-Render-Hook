@@ -15,9 +15,12 @@
 
 ---
 
+## 项目概述
+
+统一的图形 API Hook 抽象层，通过 VTable Patch（DX11/DX12）和 Implicit Layer（Vulkan）拦截渲染提交点，自动探测并锁定活跃后端，向上层提供统一的 `onSetup` / `onRender` 回调和设备/交换链运行时信息。
+
 > [!NOTE]
-> **仓库边界**  
-> 本仓库是无 UI 的 Hook 核心层，负责 DX11 / DX12 / Vulkan Hook、运行时快照和后端仲裁，不含 GUI、录屏或控制器。
+> 纯 Hook 核心层，无外部依赖（Vulkan 无需 SDK），产物为单个静态库 `URH.lib`。
 
 ## 特性
 
