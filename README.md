@@ -15,12 +15,9 @@
 
 ---
 
-## 项目概述
-
-统一的图形 API Hook 抽象层，通过 VTable Patch（DX11/DX12）和 Implicit Layer（Vulkan）拦截渲染提交点，自动探测并锁定活跃后端，向上层提供统一的 `onSetup` / `onRender` 回调和设备/交换链运行时信息。
-
 > [!NOTE]
-> 纯 Hook 核心层，无外部依赖（Vulkan 无需 SDK），产物为单个静态库 `URH.lib`。
+> **仓库边界**  
+> 本仓库是无 UI 的 Hook 核心层，负责 DX11 / DX12 / Vulkan Hook、运行时快照和后端仲裁，不含 GUI、录屏或控制器。
 
 ## 特性
 
@@ -139,26 +136,27 @@ OnDx11Frame / OnDx12Frame / OnVulkanFrame
 
 ```
 Universal-Render-Hook/
-├── build.bat                    # 编译脚本 (MSVC x64 Release)
-├── URH/
-│   ├── include/urh/             # 公共 API
-│   │   ├── urh.h                # 统一入口
-│   │   ├── autohook.h           # AutoHook API
-│   │   ├── types.h              # 公共类型
-│   │   ├── dx11_hook.h / dx11_types.h
-│   │   ├── dx12_hook.h / dx12_types.h
-│   │   └── vulkan.h / vulkan_hook.h / vulkan_types.h
-│   └── src/
-│       ├── autohook/            # AutoHook 仲裁模块
-│       ├── dx11/                # DX11 Hook 实现
-│       ├── dx12/                # DX12 Hook 实现
-│       ├── dx_common/           # DX11/DX12 公共层 (VTable patch 等)
-│       ├── vulkan/              # Vulkan Hook 实现
-│       │   └── (layer/ 逻辑内聚在 vulkan/ 内)
-│       ├── urh_*.{h}            # shim → include/urh/ 转发
-│       └── urh_console_logger.h # 日志工具
-└── bin/
-    └── URH.lib                  # 编译产物
+├── build.bat                  # 编译脚本 (MSVC x64 Release)
+└── URH/
+    ├── include/urh/
+    │   ├── urh.h              # 入口
+    │   ├── autohook.h         # AutoHook API
+    │   ├── types.h            # 公共类型
+    │   ├── dx11_*.h           # DX11 Hook
+    │   ├── dx12_*.h           # DX12 Hook
+    │   └── vulkan*.h          # Vulkan Hook API
+    └── src/
+        ├── urh_autohook*.cpp          # AutoHook 仲裁
+        ├── urh_dx11_*.cpp             # DX11 Hook 实现
+        ├── urh_dx12_*.cpp             # DX12 Hook 实现
+        ├── urh_vulkan_bootstrap.cpp   # Vulkan 初始化 / 状态查询
+        ├── urh_vulkan_tracking.cpp    # Vulkan 运行时跟踪
+        ├── urh_vulkan_runtime_probe.cpp # Vulkan 运行时探测
+        ├── urh_vulkan_layer_*.cpp     # Vulkan Layer 导出与 Dispatch
+        ├── urh_vulkan_internal.h      # Vulkan 内部状态
+        ├── urh_vulkan_layer_internal.h # Vulkan Layer 内部类型
+        ├── urh_vulkan_minimal.h       # 最小 Vulkan 类型定义 (无 SDK 依赖)
+        └── urh_console_logger.h       # 日志
 ```
 
 ---
